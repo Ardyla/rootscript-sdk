@@ -1,0 +1,8 @@
+{
+  "name": "@rootscript/next",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Planned Next.js adapter helpers for Rootscript"
+}
+

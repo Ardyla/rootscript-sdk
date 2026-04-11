@@ -1,0 +1,8 @@
+{
+  "name": "@rootscript/react",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Planned React components for Rootscript blog rendering"
+}
+
