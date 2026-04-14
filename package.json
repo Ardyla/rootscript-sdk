@@ -10,7 +10,8 @@
   "scripts": {
     "build": "pnpm --filter @rootscript/core build",
     "test": "pnpm --filter @rootscript/core test",
-    "typecheck": "pnpm --filter @rootscript/core typecheck"
+    "typecheck": "pnpm --filter @rootscript/core typecheck",
+    "release:core": "pnpm --filter @rootscript/core build && pnpm --filter @rootscript/core publish --access public"
   },
   "devDependencies": {
     "@types/node": "^22.13.11",

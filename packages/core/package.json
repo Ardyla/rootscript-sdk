@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "description": "Framework-agnostic Rootscript blog client and helpers",
   "type": "module",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -20,7 +24,7 @@
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
-    "typecheck": "tsc --project tsconfig.json --noEmit"
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "prepublishOnly": "pnpm build"
   }
 }
-
