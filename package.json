@@ -8,10 +8,10 @@
     "examples/*"
   ],
   "scripts": {
-    "build": "pnpm --filter @rootscript/core build",
-    "test": "pnpm --filter @rootscript/core test",
-    "typecheck": "pnpm --filter @rootscript/core typecheck",
-    "release:core": "pnpm --filter @rootscript/core build && pnpm --filter @rootscript/core publish --access public"
+    "build": "pnpm --filter @ardyla/rootscript-core build",
+    "test": "pnpm --filter @ardyla/rootscript-core test",
+    "typecheck": "pnpm --filter @ardyla/rootscript-core typecheck",
+    "release:core": "pnpm --filter @ardyla/rootscript-core build && pnpm --filter @ardyla/rootscript-core publish --access public"
   },
   "devDependencies": {
     "@types/node": "^22.13.11",

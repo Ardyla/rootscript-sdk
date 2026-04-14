@@ -2,12 +2,12 @@
 
 Rootscript SDK is a pnpm-workspace monorepo for a public blog SDK that targets:
 
-- `@rootscript/core`
+- `@ardyla/rootscript-core`
 - `@rootscript/react`
 - `@rootscript/next`
 - `@rootscript/angular`
 
-This first phase scaffolds the monorepo and fully implements `@rootscript/core`.
+This first phase scaffolds the monorepo and fully implements `@ardyla/rootscript-core`.
 
 ## Current Structure
 
@@ -26,7 +26,7 @@ rootscript-sdk/
 
 ## Core Scope
 
-`@rootscript/core` provides:
+`@ardyla/rootscript-core` provides:
 
 - public TypeScript types
 - a framework-agnostic API client
@@ -40,7 +40,7 @@ rootscript-sdk/
 
 ```bash
 pnpm install
-pnpm --filter @rootscript/core test
+pnpm --filter @ardyla/rootscript-core test
 ```
 
 If `pnpm` is not already available locally, enable it with Corepack first.
