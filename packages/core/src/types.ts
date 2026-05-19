@@ -18,6 +18,14 @@ export type RootscriptPostSummary = {
   updatedAt?: string
   canonicalUrl: string
   coverImage?: string
+  primaryCluster?: string
+  category?: string
+  primaryClusterUrl?: string
+  cluster?: {
+    slug: string
+    label: string
+    url?: string
+  }
 }
 
 export type RootscriptPost = RootscriptPostSummary & {
@@ -25,6 +33,20 @@ export type RootscriptPost = RootscriptPostSummary & {
   contentFormat: RootscriptContentFormat
   relatedSlugs?: string[]
   jsonLd?: Record<string, unknown>
+}
+
+export type RootscriptBlogCluster = {
+  slug: string
+  label: string
+  description: string
+  url?: string
+  postCount?: number
+  latestPublishedAt?: string
+}
+
+export type RootscriptClusterResponse = {
+  cluster: RootscriptBlogCluster
+  posts: RootscriptPostSummary[]
 }
 
 export type RootscriptCacheStrategy = 'no-store' | 'force-cache' | 'revalidate'
@@ -47,6 +69,9 @@ export type RootscriptRelatedPostsOptions = {
 export type RootscriptEndpointOptions = {
   postsPath?: string
   postPath?: (slug: string) => string
+  clustersPath?: string
+  clusterPath?: (slug: string) => string
+  sitemapPath?: string
 }
 
 export type RootscriptClientOptions = {
@@ -68,6 +93,8 @@ export type RootscriptNormalizationOptions = {
 export type RootscriptClient = {
   getPosts(): Promise<RootscriptPostSummary[]>
   getPost(slug: string): Promise<RootscriptPost | null>
+  getClusters(): Promise<RootscriptBlogCluster[]>
+  getCluster(slug: string): Promise<RootscriptClusterResponse | null>
   getRelatedPosts(
     post: RootscriptPost,
     allPosts?: RootscriptPostSummary[],

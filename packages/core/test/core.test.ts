@@ -4,6 +4,7 @@ import {
   buildArticleJsonLd,
   createRootscriptClient,
   generateSitemapXml,
+  getPostsByCluster,
   normalizePost,
   normalizePostSummary,
   resolveRelatedPosts,
@@ -79,6 +80,33 @@ describe('@rootscript/core normalization', () => {
       'https://blog.example.com/articles/edge-runtime-patterns',
     )
   })
+
+  it('normalizes cluster metadata on post summaries', () => {
+    const normalized = normalizePostSummary({
+      id: 'post-1',
+      slug: 'ai-search',
+      title: 'AI Search',
+      excerpt: 'AI search summary',
+      tags: [],
+      publishedAt: '2026-03-10T14:30:00Z',
+      canonicalUrl: 'https://example.com/blog/ai-search',
+      cluster: {
+        slug: 'ai-seo',
+        label: 'AI SEO',
+        url: 'https://example.com/blog/ai-seo',
+      },
+    })
+
+    expect(normalized).toMatchObject({
+      primaryCluster: 'ai-seo',
+      primaryClusterUrl: 'https://example.com/blog/ai-seo',
+      cluster: {
+        slug: 'ai-seo',
+        label: 'AI SEO',
+        url: 'https://example.com/blog/ai-seo',
+      },
+    })
+  })
 })
 
 describe('@rootscript/core link rewriting', () => {
@@ -147,6 +175,40 @@ describe('@rootscript/core related posts', () => {
     expect(related.map((post) => post.slug)).toEqual([
       'angular-sdk',
       'react-rendering',
+    ])
+  })
+})
+
+describe('@rootscript/core cluster helpers', () => {
+  it('filters posts by cluster metadata', () => {
+    const posts = [
+      normalizePostSummary({
+        id: '1',
+        slug: 'ai-seo-guide',
+        title: 'AI SEO Guide',
+        excerpt: 'Guide',
+        tags: [],
+        publishedAt: '2026-03-10T14:30:00Z',
+        canonicalUrl: 'https://example.com/blog/ai-seo-guide',
+        primaryCluster: 'ai-seo',
+      }),
+      normalizePostSummary({
+        id: '2',
+        slug: 'content-guide',
+        title: 'Content Guide',
+        excerpt: 'Guide',
+        tags: [],
+        publishedAt: '2026-03-11T14:30:00Z',
+        canonicalUrl: 'https://example.com/blog/content-guide',
+        cluster: {
+          slug: 'content-marketing',
+          label: 'Content Marketing',
+        },
+      }),
+    ]
+
+    expect(getPostsByCluster(posts, 'ai-seo').map((post) => post.slug)).toEqual([
+      'ai-seo-guide',
     ])
   })
 })
@@ -286,5 +348,180 @@ describe('@rootscript/core client', () => {
     })
 
     await expect(client.getPost('missing-post')).resolves.toBeNull()
+  })
+
+  it('fetches and unwraps cluster list responses', async () => {
+    const fetchMock = vi.fn<typeof globalThis.fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          clusters: [
+            {
+              slug: 'ai-seo',
+              label: 'AI SEO',
+              description: 'Articles and guides about AI SEO.',
+              url: 'https://example.com/blog/ai-seo',
+              postCount: 8,
+              latestPublishedAt: '2026-03-10T14:30:00Z',
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    )
+
+    const client = createRootscriptClient({
+      apiBaseUrl: 'https://api.example.com/public/blog',
+      apiKey: 'secret',
+      fetch: fetchMock,
+    })
+
+    await expect(client.getClusters()).resolves.toEqual([
+      {
+        slug: 'ai-seo',
+        label: 'AI SEO',
+        description: 'Articles and guides about AI SEO.',
+        url: 'https://example.com/blog/ai-seo',
+        postCount: 8,
+        latestPublishedAt: '2026-03-10T14:30:00.000Z',
+      },
+    ])
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.example.com/public/blog/clusters',
+      expect.objectContaining({
+        method: 'GET',
+      }),
+    )
+  })
+
+  it('fetches cluster detail responses with normalized posts', async () => {
+    const fetchMock = vi.fn<typeof globalThis.fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          cluster: {
+            slug: 'ai-seo',
+            label: 'AI SEO',
+            description: 'Articles and guides about AI SEO.',
+          },
+          posts: [
+            {
+              id: '1',
+              slug: 'ai-search',
+              title: 'AI Search',
+              excerpt: 'AI search summary',
+              tags: [],
+              publishedAt: '2026-03-10T14:30:00Z',
+              canonicalUrl: 'https://example.com/blog/ai-search',
+              primaryCluster: 'ai-seo',
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    )
+
+    const client = createRootscriptClient({
+      apiBaseUrl: 'https://api.example.com/public/blog',
+      apiKey: 'secret',
+      fetch: fetchMock,
+    })
+
+    const response = await client.getCluster('ai-seo')
+
+    expect(response?.cluster).toMatchObject({
+      slug: 'ai-seo',
+      label: 'AI SEO',
+    })
+    expect(response?.posts).toHaveLength(1)
+    expect(response?.posts[0]?.primaryCluster).toBe('ai-seo')
+  })
+
+  it('returns null on 404 cluster detail responses', async () => {
+    const fetchMock = vi.fn<typeof globalThis.fetch>().mockResolvedValue(
+      new Response('Not found', { status: 404 }),
+    )
+
+    const client = createRootscriptClient({
+      apiBaseUrl: 'https://api.example.com/public/blog',
+      apiKey: 'secret',
+      fetch: fetchMock,
+    })
+
+    await expect(client.getCluster('missing-cluster')).resolves.toBeNull()
+  })
+
+  it('preserves unwrapped cluster arrays and custom endpoint options', async () => {
+    const fetchMock = vi.fn<typeof globalThis.fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify([
+          {
+            slug: 'ai-seo',
+            label: 'AI SEO',
+            description: 'Articles and guides about AI SEO.',
+          },
+        ]),
+        { status: 200 },
+      ),
+    )
+
+    const client = createRootscriptClient({
+      apiBaseUrl: 'https://api.example.com/public/blog',
+      apiKey: 'secret',
+      fetch: fetchMock,
+      endpoints: {
+        clustersPath: '/topics',
+      },
+    })
+
+    await expect(client.getClusters()).resolves.toHaveLength(1)
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.example.com/public/blog/topics',
+      expect.any(Object),
+    )
+  })
+
+  it('normalizes nested cluster detail response shapes', async () => {
+    const fetchMock = vi.fn<typeof globalThis.fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: {
+            cluster: {
+              slug: 'ai-seo',
+              label: 'AI SEO',
+              description: 'Articles and guides about AI SEO.',
+            },
+            posts: [
+              {
+                id: '1',
+                slug: 'ai-seo-guide',
+                title: 'AI SEO Guide',
+                excerpt: 'Guide',
+                tags: [],
+                publishedAt: '2026-03-10T14:30:00Z',
+                canonicalUrl: 'https://example.com/blog/ai-seo-guide',
+              },
+            ],
+          },
+        }),
+        { status: 200 },
+      ),
+    )
+
+    const client = createRootscriptClient({
+      apiBaseUrl: 'https://api.example.com/public/blog',
+      apiKey: 'secret',
+      fetch: fetchMock,
+    })
+
+    await expect(client.getCluster('ai-seo')).resolves.toMatchObject({
+      cluster: {
+        slug: 'ai-seo',
+      },
+      posts: [
+        {
+          slug: 'ai-seo-guide',
+        },
+      ],
+    })
   })
 })

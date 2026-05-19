@@ -1,5 +1,6 @@
 import type {
   RootscriptAuthorSummary,
+  RootscriptBlogCluster,
   RootscriptContentFormat,
   RootscriptNormalizationOptions,
   RootscriptPost,
@@ -86,6 +87,14 @@ export function normalizePostSummary(
     resolveCanonicalUrl(slug, options.siteBaseUrl, options.linking)
   const tags = normalizeTags(record)
   const authors = normalizeAuthors(record)
+  const cluster = normalizePostCluster(record)
+  const primaryCluster =
+    pickFirstString(record, ['primaryCluster', 'primary_cluster', 'clusterSlug']) ??
+    cluster?.slug
+  const category = pickFirstString(record, ['category', 'categoryName', 'category_name'])
+  const primaryClusterUrl =
+    pickFirstString(record, ['primaryClusterUrl', 'primary_cluster_url']) ??
+    cluster?.url
   const id =
     pickFirstString(record, ['id', '_id', 'uuid']) ??
     pickFirstString(record, ['postId', 'post_id']) ??
@@ -102,6 +111,42 @@ export function normalizePostSummary(
     ...(updatedAt ? { updatedAt } : {}),
     canonicalUrl,
     ...(coverImage ? { coverImage } : {}),
+    ...(primaryCluster ? { primaryCluster } : {}),
+    ...(category ? { category } : {}),
+    ...(primaryClusterUrl ? { primaryClusterUrl } : {}),
+    ...(cluster ? { cluster } : {}),
+  }
+}
+
+export function normalizeBlogCluster(input: unknown): RootscriptBlogCluster {
+  const record = ensureRecord(input)
+  const rawUrl = pickFirstString(record, ['url', 'canonicalUrl', 'canonical_url'])
+  const explicitSlug = pickFirstString(record, ['slug', 'canonicalSlug'])
+  const fallbackSlugSource =
+    readSlugFromUrl(rawUrl ?? '') ??
+    pickFirstString(record, ['label', 'name', 'title'])
+  const slug = slugify(explicitSlug ?? fallbackSlugSource ?? 'cluster')
+  const label = pickFirstString(record, ['label', 'name', 'title']) ?? slug
+  const description = pickFirstString(record, ['description', 'excerpt', 'summary']) ?? ''
+  const postCount = normalizeNumber(
+    pickFirstValue(record, ['postCount', 'post_count', 'count']),
+  )
+  const latestPublishedAt = normalizeDateString(
+    pickFirstValue(record, [
+      'latestPublishedAt',
+      'latest_published_at',
+      'lastPublishedAt',
+      'last_published_at',
+    ]),
+  )
+
+  return {
+    slug,
+    label,
+    description,
+    ...(rawUrl ? { url: rawUrl } : {}),
+    ...(postCount !== undefined ? { postCount } : {}),
+    ...(latestPublishedAt ? { latestPublishedAt } : {}),
   }
 }
 
@@ -174,6 +219,45 @@ function normalizeTags(record: UnknownRecord): string[] {
   return topic ? [topic] : []
 }
 
+function normalizePostCluster(
+  record: UnknownRecord,
+): RootscriptPostSummary['cluster'] | undefined {
+  const rawCluster = pickFirstValue(record, ['cluster', 'primaryClusterData'])
+
+  if (isRecord(rawCluster)) {
+    const slug = pickFirstString(rawCluster, ['slug', 'canonicalSlug'])
+    const label = pickFirstString(rawCluster, ['label', 'name', 'title']) ?? slug
+    const url = pickFirstString(rawCluster, ['url', 'canonicalUrl', 'canonical_url'])
+
+    if (slug && label) {
+      return {
+        slug,
+        label,
+        ...(url ? { url } : {}),
+      }
+    }
+  }
+
+  const slug = pickFirstString(record, [
+    'clusterSlug',
+    'cluster_slug',
+    'primaryCluster',
+    'primary_cluster',
+  ])
+  const label = pickFirstString(record, ['clusterLabel', 'cluster_label']) ?? slug
+  const url = pickFirstString(record, ['clusterUrl', 'cluster_url', 'primaryClusterUrl'])
+
+  if (!slug || !label) {
+    return undefined
+  }
+
+  return {
+    slug,
+    label,
+    ...(url ? { url } : {}),
+  }
+}
+
 function normalizeAuthors(record: UnknownRecord): RootscriptAuthorSummary[] {
   const rawAuthors = pickFirstValue(record, ['authors', 'author_list'])
 
@@ -239,6 +323,19 @@ function normalizeRelatedSlugs(record: UnknownRecord): string[] {
   return uniqueStrings(related.map((entry) => slugify(entry)))
 }
 
+function normalizeNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : undefined
+  }
+
+  return undefined
+}
+
 function ensureRecord(input: unknown): UnknownRecord {
   if (isRecord(input)) {
     return input
@@ -246,4 +343,3 @@ function ensureRecord(input: unknown): UnknownRecord {
 
   return {}
 }
-

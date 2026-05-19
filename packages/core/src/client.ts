@@ -1,17 +1,20 @@
 import { buildArticleJsonLd } from './json-ld'
 import { rewriteContentLinks } from './links'
-import { normalizePost, normalizePostSummary } from './normalize'
+import { normalizeBlogCluster, normalizePost, normalizePostSummary } from './normalize'
 import { resolveRelatedPosts } from './related'
 import { generateSitemapXml } from './sitemap'
 import type {
+  RootscriptBlogCluster,
   RootscriptClient,
   RootscriptClientOptions,
+  RootscriptClusterResponse,
   RootscriptPost,
   RootscriptPostSummary,
 } from './types'
 import { isRecord, joinUrl, uniqueBySlug, type UnknownRecord } from './utils'
 
 const DEFAULT_POSTS_PATH = '/posts'
+const DEFAULT_CLUSTERS_PATH = '/clusters'
 
 type ExtendedRequestInit = RequestInit & {
   next?: {
@@ -72,9 +75,50 @@ export function createRootscriptClient(
     }
   }
 
+  const getClusters = async (): Promise<RootscriptBlogCluster[]> => {
+    const payload = await getJson(fetchImpl, options, resolveClustersPath(options))
+    const records = unwrapCollection(payload, ['clusters'])
+
+    return uniqueBySlug(records.map((record) => normalizeBlogCluster(record)))
+  }
+
+  const getCluster = async (
+    slug: string,
+  ): Promise<RootscriptClusterResponse | null> => {
+    const payload = await getJson(
+      fetchImpl,
+      options,
+      resolveClusterPath(options, slug),
+      true,
+    )
+
+    if (payload === null) {
+      return null
+    }
+
+    const response = unwrapClusterResponse(payload)
+    if (!response) {
+      return null
+    }
+
+    return {
+      cluster: normalizeBlogCluster(response.cluster),
+      posts: uniqueBySlug(
+        response.posts.map((record) =>
+          normalizePostSummary(record, {
+            siteBaseUrl: options.siteBaseUrl,
+            linking: options.linking,
+          }),
+        ),
+      ),
+    }
+  }
+
   return {
     getPosts,
     getPost,
+    getClusters,
+    getCluster,
 
     async getRelatedPosts(post: RootscriptPost, allPosts?: RootscriptPostSummary[]) {
       const posts = allPosts ?? (await getPosts())
@@ -155,7 +199,22 @@ function resolvePostPath(options: RootscriptClientOptions, slug: string): string
   return `${resolvePostsPath(options).replace(/\/+$/, '')}/${encodeURIComponent(slug)}`
 }
 
-function unwrapCollection(payload: unknown): UnknownRecord[] {
+function resolveClustersPath(options: RootscriptClientOptions): string {
+  return options.endpoints?.clustersPath ?? DEFAULT_CLUSTERS_PATH
+}
+
+function resolveClusterPath(options: RootscriptClientOptions, slug: string): string {
+  if (options.endpoints?.clusterPath) {
+    return options.endpoints.clusterPath(slug)
+  }
+
+  return `${resolveClustersPath(options).replace(/\/+$/, '')}/${encodeURIComponent(slug)}`
+}
+
+function unwrapCollection(
+  payload: unknown,
+  preferredKeys: string[] = [],
+): UnknownRecord[] {
   if (Array.isArray(payload)) {
     return payload.filter(isRecord)
   }
@@ -164,7 +223,7 @@ function unwrapCollection(payload: unknown): UnknownRecord[] {
     return []
   }
 
-  const directArrayKeys = ['posts', 'items', 'results', 'data']
+  const directArrayKeys = [...preferredKeys, 'posts', 'items', 'results', 'data']
 
   for (const key of directArrayKeys) {
     const value = payload[key]
@@ -181,6 +240,24 @@ function unwrapCollection(payload: unknown): UnknownRecord[] {
   }
 
   return []
+}
+
+function unwrapClusterResponse(
+  payload: unknown,
+): { cluster: UnknownRecord; posts: UnknownRecord[] } | null {
+  const record = unwrapSingle(payload)
+
+  if (!record) {
+    return null
+  }
+
+  const nested = isRecord(record.data) ? record.data : record
+  const cluster = isRecord(nested.cluster) ? nested.cluster : nested
+
+  return {
+    cluster,
+    posts: unwrapCollection(nested),
+  }
 }
 
 function unwrapSingle(payload: unknown): UnknownRecord | null {

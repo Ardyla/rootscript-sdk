@@ -18,7 +18,8 @@ const client = createRootscriptClient({
 })
 
 const posts = await client.getPosts()
-const post = await client.getPost('hello-world')
+const clusters = await client.getClusters()
+const cluster = await client.getCluster('ai-seo')
 ```
 
 ## API Basics
@@ -48,6 +49,10 @@ Typical fields:
 - `updatedAt`
 - `canonicalUrl`
 - `coverImage`
+- `primaryCluster`
+- `category`
+- `primaryClusterUrl`
+- `cluster`
 
 Example response:
 
@@ -63,7 +68,15 @@ Example response:
     "publishedAt": "2026-04-14T00:00:00.000Z",
     "updatedAt": "2026-04-14T12:00:00.000Z",
     "canonicalUrl": "https://example.com/blog/hello-world",
-    "coverImage": "https://cdn.example.com/hello-world.jpg"
+    "coverImage": "https://cdn.example.com/hello-world.jpg",
+    "primaryCluster": "ai-seo",
+    "category": "AI SEO",
+    "primaryClusterUrl": "https://example.com/blog/ai-seo",
+    "cluster": {
+      "slug": "ai-seo",
+      "label": "AI SEO",
+      "url": "https://example.com/blog/ai-seo"
+    }
   }
 ]
 ```
@@ -103,6 +116,73 @@ Example response:
 }
 ```
 
+### `GET /clusters`
+
+Returns the published blog clusters used to render hub pages.
+
+Typical fields:
+
+- `slug`
+- `label`
+- `description`
+- `url`
+- `postCount`
+- `latestPublishedAt`
+
+Example response:
+
+```json
+{
+  "clusters": [
+    {
+      "slug": "ai-seo",
+      "label": "AI SEO",
+      "description": "Articles and guides about AI SEO.",
+      "url": "https://example.com/blog/ai-seo",
+      "postCount": 8,
+      "latestPublishedAt": "2026-03-10T14:30:00Z"
+    }
+  ]
+}
+```
+
+### `GET /clusters/:slug`
+
+Returns one cluster and the posts that belong to it.
+
+Example response:
+
+```json
+{
+  "cluster": {
+    "slug": "ai-seo",
+    "label": "AI SEO",
+    "description": "Articles and guides about AI SEO.",
+    "url": "https://example.com/blog/ai-seo",
+    "postCount": 8,
+    "latestPublishedAt": "2026-03-10T14:30:00Z"
+  },
+  "posts": [
+    {
+      "id": "post_123",
+      "slug": "ai-search-guide",
+      "title": "AI Search Guide",
+      "excerpt": "A short summary of the post.",
+      "tags": ["ai-seo"],
+      "authors": [{ "name": "Rootscript" }],
+      "publishedAt": "2026-03-10T14:30:00Z",
+      "canonicalUrl": "https://example.com/blog/ai-search-guide",
+      "primaryCluster": "ai-seo",
+      "cluster": {
+        "slug": "ai-seo",
+        "label": "AI SEO",
+        "url": "https://example.com/blog/ai-seo"
+      }
+    }
+  ]
+}
+```
+
 ## Response Reference
 
 | Field | Description |
@@ -117,6 +197,10 @@ Example response:
 | `updatedAt` | Last updated timestamp, when available. |
 | `canonicalUrl` | Public URL for the post. |
 | `coverImage` | Optional cover image URL. |
+| `primaryCluster` | Optional primary cluster slug for a post. |
+| `category` | Optional category label or slug supplied by the API. |
+| `primaryClusterUrl` | Optional public URL for the post's primary cluster hub. |
+| `cluster` | Optional cluster summary with `slug`, `label`, and `url`. |
 | `content` | Full content for single post responses. |
 | `contentFormat` | Either `markdown` or `html`. |
 | `jsonLd` | Structured data payload for SEO. |
@@ -140,6 +224,9 @@ createRootscriptClient({
   endpoints: {
     postsPath: '/posts',
     postPath: (slug) => `/posts/${slug}`,
+    clustersPath: '/clusters',
+    clusterPath: (slug) => `/clusters/${slug}`,
+    sitemapPath: '/sitemap',
   },
 })
 ```
@@ -148,10 +235,18 @@ Supported client methods:
 
 - `getPosts()`
 - `getPost(slug)`
+- `getClusters()`
+- `getCluster(slug)`
 - `getRelatedPosts(post, allPosts?)`
 - `rewriteContentLinks(content, contentFormat)`
 - `buildJsonLd(post)`
 - `generateSitemapXml(posts)`
+
+Helper exports:
+
+- `getPostsByCluster(posts, clusterSlug)`
+- `getClusterUrl(cluster, fallbackBasePath?)`
+- `buildClusterJsonLd(cluster, posts, siteBaseUrl)`
 
 ## Framework Examples
 
@@ -171,6 +266,71 @@ export const rootscript = createRootscriptClient({
 })
 
 const posts = await rootscript.getPosts()
+```
+
+Cluster hub page:
+
+```tsx
+import { notFound } from 'next/navigation'
+import {
+  buildClusterJsonLd,
+  createRootscriptClient,
+  getClusterUrl,
+} from '@ardyla/rootscript-core'
+
+const rootscript = createRootscriptClient({
+  apiBaseUrl: process.env.ROOTSCRIPT_API_BASE_URL!,
+  apiKey: process.env.ROOTSCRIPT_API_KEY!,
+  siteBaseUrl: process.env.NEXT_PUBLIC_SITE_URL!,
+  cache: {
+    strategy: 'revalidate',
+    revalidateSeconds: 60,
+  },
+})
+
+export async function generateStaticParams() {
+  const clusters = await rootscript.getClusters()
+  return clusters.map((cluster) => ({ slug: cluster.slug }))
+}
+
+export default async function ClusterPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+  const response = await rootscript.getCluster(slug)
+
+  if (!response) {
+    notFound()
+  }
+
+  const { cluster, posts } = response
+  const jsonLd = buildClusterJsonLd(
+    cluster,
+    posts,
+    process.env.NEXT_PUBLIC_SITE_URL!,
+  )
+
+  return (
+    <main>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <h1>{cluster.label}</h1>
+      <p>{cluster.description}</p>
+      <ul>
+        {posts.map((post) => (
+          <li key={post.slug}>
+            <a href={post.canonicalUrl}>{post.title}</a>
+          </li>
+        ))}
+      </ul>
+      <a href={getClusterUrl(cluster)}>Canonical cluster URL</a>
+    </main>
+  )
+}
 ```
 
 ### React
@@ -208,4 +368,6 @@ const rootscript = createRootscriptClient({
 - `apiBaseUrl` should point at your Rootscript API root, not an example placeholder URL.
 - The client normalizes legacy response shapes into a stable public contract.
 - `getPost(slug)` returns `null` for a missing post.
+- `getCluster(slug)` returns `null` for a missing cluster.
+- Post summaries include cluster metadata when the Rootscript API returns it.
 - The package is framework-agnostic and can be used from SSR, server actions, API routes, jobs, or custom services.
