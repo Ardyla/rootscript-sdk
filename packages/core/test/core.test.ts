@@ -326,7 +326,6 @@ describe('@rootscript/core client', () => {
       expect.objectContaining({
         headers: expect.objectContaining({
           Authorization: 'Bearer secret',
-          'x-api-key': 'secret',
         }),
         cache: 'force-cache',
         next: {

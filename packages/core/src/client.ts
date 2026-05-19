@@ -150,7 +150,6 @@ async function getJson(
     headers: {
       Accept: 'application/json',
       Authorization: `Bearer ${options.apiKey}`,
-      'x-api-key': options.apiKey,
     },
     ...buildRequestInit(options),
   } satisfies ExtendedRequestInit)

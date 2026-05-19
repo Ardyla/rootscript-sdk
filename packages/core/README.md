@@ -29,8 +29,6 @@ const cluster = await client.getCluster('ai-seo')
 - Access control: API keys are tied to allowed origins, with CORS enforced
 - Caching: edge cached, `s-maxage=60`, `stale-while-revalidate=300`
 
-The client also sends `x-api-key` for compatibility with the Rootscript API.
-
 ## Endpoints
 
 ### `GET /posts`
