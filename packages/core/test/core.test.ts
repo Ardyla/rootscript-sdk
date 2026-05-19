@@ -23,7 +23,7 @@ describe('@rootscript/core normalization', () => {
         authors: [
           {
             full_name: 'Jane Doe',
-            avatar_url: 'https://cdn.example.com/jane.png',
+            imageUrl: 'https://cdn.example.com/jane.png',
           },
         ],
         createdAt: '2024-01-15T10:00:00Z',
@@ -54,6 +54,7 @@ describe('@rootscript/core normalization', () => {
       {
         name: 'Jane Doe',
         avatarUrl: 'https://cdn.example.com/jane.png',
+        imageUrl: 'https://cdn.example.com/jane.png',
       },
     ])
   })
@@ -90,6 +91,8 @@ describe('@rootscript/core normalization', () => {
       tags: [],
       publishedAt: '2026-03-10T14:30:00Z',
       canonicalUrl: 'https://example.com/blog/ai-search',
+      thumbnailUrl: 'https://cdn.example.com/ai-search.jpg',
+      thumbnailAlt: 'AI search cover',
       cluster: {
         slug: 'ai-seo',
         label: 'AI SEO',
@@ -100,6 +103,8 @@ describe('@rootscript/core normalization', () => {
     expect(normalized).toMatchObject({
       primaryCluster: 'ai-seo',
       primaryClusterUrl: 'https://example.com/blog/ai-seo',
+      thumbnailUrl: 'https://cdn.example.com/ai-search.jpg',
+      thumbnailAlt: 'AI search cover',
       cluster: {
         slug: 'ai-seo',
         label: 'AI SEO',

@@ -4,6 +4,7 @@ export type RootscriptAuthorSummary = {
   id?: string
   name: string
   avatarUrl?: string
+  imageUrl?: string
   bio?: string
 }
 
@@ -18,6 +19,8 @@ export type RootscriptPostSummary = {
   updatedAt?: string
   canonicalUrl: string
   coverImage?: string
+  thumbnailUrl?: string
+  thumbnailAlt?: string
   primaryCluster?: string
   category?: string
   primaryClusterUrl?: string

@@ -33,6 +33,8 @@ const COVER_IMAGE_KEYS = [
   'image_url',
   'heroImage',
 ]
+const THUMBNAIL_URL_KEYS = ['thumbnailUrl', 'thumbnail_url', 'thumbnail']
+const THUMBNAIL_ALT_KEYS = ['thumbnailAlt', 'thumbnail_alt', 'imageAlt', 'image_alt']
 const CANONICAL_URL_KEYS = ['canonicalUrl', 'canonical_url', 'url', 'permalink']
 const PUBLISHED_AT_KEYS = [
   'publishedAt',
@@ -82,6 +84,8 @@ export function normalizePostSummary(
     new Date(0).toISOString()
   const updatedAt = normalizeDateString(pickFirstValue(record, UPDATED_AT_KEYS))
   const coverImage = pickFirstString(record, COVER_IMAGE_KEYS)
+  const thumbnailUrl = pickFirstString(record, THUMBNAIL_URL_KEYS)
+  const thumbnailAlt = pickFirstString(record, THUMBNAIL_ALT_KEYS)
   const canonicalUrl =
     rawCanonicalUrl ??
     resolveCanonicalUrl(slug, options.siteBaseUrl, options.linking)
@@ -111,6 +115,8 @@ export function normalizePostSummary(
     ...(updatedAt ? { updatedAt } : {}),
     canonicalUrl,
     ...(coverImage ? { coverImage } : {}),
+    ...(thumbnailUrl ? { thumbnailUrl } : {}),
+    ...(thumbnailAlt ? { thumbnailAlt } : {}),
     ...(primaryCluster ? { primaryCluster } : {}),
     ...(category ? { category } : {}),
     ...(primaryClusterUrl ? { primaryClusterUrl } : {}),
@@ -305,13 +311,17 @@ function normalizeAuthor(value: unknown): RootscriptAuthorSummary | null {
     'avatar_url',
     'avatar',
     'image',
+    'imageUrl',
+    'image_url',
   ])
+  const imageUrl = pickFirstString(value, ['imageUrl', 'image_url'])
   const bio = pickFirstString(value, ['bio', 'description'])
 
   return {
     ...(id ? { id } : {}),
     name,
     ...(avatarUrl ? { avatarUrl } : {}),
+    ...(imageUrl ? { imageUrl } : {}),
     ...(bio ? { bio } : {}),
   }
 }

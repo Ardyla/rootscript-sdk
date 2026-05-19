@@ -266,6 +266,46 @@ export const rootscript = createRootscriptClient({
 const posts = await rootscript.getPosts()
 ```
 
+Full post rendering:
+
+```tsx
+import ReactMarkdown from 'react-markdown'
+
+function ArticleBody({ post }: { post: Awaited<ReturnType<typeof rootscript.getPost>> }) {
+  if (!post) {
+    return null
+  }
+
+  const content = post.content
+    .replace(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/^\s*<h1[^>]*>[\s\S]*?<\/h1>\s*/i, '')
+    .replace(/^\s*#\s+[^\n]+\n*/, '')
+
+  return (
+    <>
+      {post.jsonLd ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(post.jsonLd) }}
+        />
+      ) : null}
+      {post.contentFormat === 'html' ? (
+        <article
+          className="prose prose-lg max-w-none"
+          dangerouslySetInnerHTML={{ __html: content }}
+        />
+      ) : (
+        <article className="prose prose-lg max-w-none">
+          <ReactMarkdown>{content}</ReactMarkdown>
+        </article>
+      )}
+    </>
+  )
+}
+```
+
+Use `post.contentFormat` to choose the renderer. Render `post.title`, breadcrumbs, and metadata outside the article body so duplicate leading titles can be stripped safely. Tailwind users should enable `@tailwindcss/typography` for the `prose` classes.
+
 Cluster hub page:
 
 ```tsx
